@@ -3,10 +3,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include <errno.h>
+// #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
+// #include <netinet/in.h>
 #include <arpa/inet.h>
 
 void
@@ -114,13 +114,12 @@ print_payload(const u_char *payload, int len)
 			break;
 		}
 	}
-
-return;
 }
 
 /*
  * dissect/print packet
  */
+
 void
 got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 {
@@ -139,9 +138,9 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 
 	printf("Length: %d\n", header->len);
 
-	printf("mac1: %s\n", mac_ntoa((u_char *)curr+4)); // the receiver, which is what we want to track
-	printf("mac2: %s\n", mac_ntoa((u_char *)curr+6+4));
-	printf("mac3: %s\n", mac_ntoa((u_char *)curr+12+4));
+	printf("mac1: %s\n", mac_ntoa(curr+4)); // the receiver, which is what we want to track
+	printf("mac2: %s\n", mac_ntoa(curr+6+4));
+	printf("mac3: %s\n", mac_ntoa(curr+12+4));
 
 	print_payload(curr, header->len - packet[2]);
 
@@ -153,11 +152,11 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 		if (macs[i] == NULL)
 		{
 			macs[i] = (char *)malloc(18);
-			strcpy(macs[i], mac_ntoa((u_char *)curr+4));
+			strcpy(macs[i], mac_ntoa(curr+4));
 			macs_count[i] = header->len - packet[2];
 			break;
 		}
-		else if (strcmp(macs[i], mac_ntoa((u_char *)curr+4)) == 0)
+		if (strcmp(macs[i], mac_ntoa(curr+4)) == 0)
 		{
 			macs_count[i] += header->len - packet[2];
 			break;
@@ -170,7 +169,6 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 		//printf("%s: %d\n", macs[i], macs_count[i]);
 		printf("%s: %0.2f%%\n", macs[i], ((double)macs_count[i])/((double)total) * 100);
 	}
-	return;
 }
 
 int main()
@@ -178,17 +176,17 @@ int main()
 
 	char *dev = NULL;			/* capture device name */
 	char errbuf[PCAP_ERRBUF_SIZE];		/* error buffer */
-	pcap_t *handle;				/* packet capture handle */
+	/* packet capture handle */
 
 // and (not host 192.168.86.27)
 	// char filter_exp[] = "tcp src portrange 0-1023 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)";		/* filter expression [3] */
-	// char filter_exp[] = "type mgt subtype probe-req";		/* filter expression [3] */
-	char filter_exp[] = "type data ";//subtype data";		/* filter expression [3] */
-	
+	// char filter_exp[] = "type mgt subtype probe-req"; // subtype probe-req		/* filter expression [3] */
+	char filter_exp[] = "(type data) or (type ctl) or (type mgt)";//subtype data";		/* filter expression [3] */
+	// char filter_exp[] = "type mgt subtype beacon";
 	struct bpf_program fp;			/* compiled filter program (expression) */
 	bpf_u_int32 mask;			/* subnet mask */
 	bpf_u_int32 net;			/* ip */
-	int num_packets = 10000;			/* number of packets to capture */
+	// int num_packets = 10000;			/* number of packets to capture */
 
 	/* find a capture device if not specified on command-line */
 	// dev = pcap_lookupdev(errbuf);
@@ -196,7 +194,7 @@ int main()
 	// 	fprintf(stderr, "Couldn't find default device: %s\n",
 	// 	    errbuf);
 	// 	exit(EXIT_FAILURE);
-	// }
+	// }∏
 
 	dev = "en0";
 
@@ -210,7 +208,7 @@ int main()
 
 	/* print capture info */
 	printf("Device: %s\n", dev);
-	printf("Number of packets: %d\n", num_packets);
+	// printf("Number of packets: %d\n", num_packets);
 	printf("Filter expression: %s\n", filter_exp);
 
 	// /* open capture device */
@@ -220,7 +218,7 @@ int main()
 	// 	exit(EXIT_FAILURE);
 	// }
 
-	handle = pcap_create(dev, errbuf);
+	pcap_t* handle = pcap_create(dev, errbuf);
 	if (handle == NULL)
 	{
 		printf("pcap_create failed:%s\n", errbuf);
@@ -234,7 +232,7 @@ int main()
 	pcap_set_snaplen(handle, 65535);  // Set the snapshot length to 65535
 	pcap_set_promisc(handle, 1); // Turn promiscuous mode off
 	pcap_set_timeout(handle, 512); // Set the timeout to 512 milliseconds
-	int status = pcap_activate(handle);
+	const int status = pcap_activate(handle);
 	if (status < 0)
 	{
 		printf("pcap_activate failed: %s\n", pcap_geterr(handle));

@@ -188,81 +188,97 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 	static int count = 1;                   /* packet counter */
 
 	/* declare pointers to packet headers */
-	const struct sniff_ethernet *ethernet;  /* The ethernet header [1] */
-	const struct sniff_ip *ip;              /* The IP header */
-	const struct sniff_tcp *tcp;            /* The TCP header */
-	const char *payload;                    /* Packet payload */
+	// const struct sniff_ethernet *ethernet;  /* The ethernet header [1] */
+	// const struct sniff_ip *ip;              /* The IP header */
+	// const struct sniff_tcp *tcp;            /* The TCP header */
+	// const char *payload;                    /* Packet payload */
 
-	int size_ip;
-	int size_tcp;
-	int size_payload;
+	// int size_ip;
+	// int size_tcp;
+	// int size_payload;
+
+	//printf("%x %x %x %x\n", packet[0], packet[1], packet[2], packet[3]);
+
+	u_char *curr = (u_char *)(packet + packet[2]); // skip radiotap
+	
+	if ((curr[1] & 0b00000011) != 2) return; // god i hope this works
 
 	printf("\nPacket number %d:\n", count);
 	count++;
 
-	/* define ethernet header */
-	ethernet = (struct sniff_ethernet*)(packet);
+	printf("Length: %d\n", header->len);
 
-	/* define/compute ip header offset */
-	ip = (struct sniff_ip*)(packet + SIZE_ETHERNET);
-	size_ip = IP_HL(ip)*4;
-	if (size_ip < 20) {
-		printf("   * Invalid IP header length: %u bytes\n", size_ip);
-		// return;
-	}
+	printf("mac1: %s\n", mac_ntoa((u_char *)curr+4));
+	printf("mac2: %s\n", mac_ntoa((u_char *)curr+6+4));
+	printf("mac3: %s\n", mac_ntoa((u_char *)curr+12+4));
 
-	/* print source and destination IP addresses */
-	printf("       From: %15s %s\n", inet_ntoa(ip->ip_src), mac_ntoa(ethernet->ether_shost));
-	printf("         To: %15s %s\n", inet_ntoa(ip->ip_dst), mac_ntoa(ethernet->ether_dhost));
+	print_payload(curr, header->len - packet[2]);
 
-	/* determine protocol */
-	switch(ip->ip_p) {
-		case IPPROTO_TCP:
-			printf("   Protocol: TCP\n");
-			break;
-		case IPPROTO_UDP:
-			printf("   Protocol: UDP\n");
-			return;
-		case IPPROTO_ICMP:
-			printf("   Protocol: ICMP\n");
-			return;
-		case IPPROTO_IP:
-			printf("   Protocol: IP\n");
-			return;
-		default:
-			printf("   Protocol: unknown\n");
-			return;
-	}
+	return;
 
-	/*
-	 *  OK, this packet is TCP.
-	 */
+	// /* define ethernet header */
+	// ethernet = (struct sniff_ethernet*)(packet);
 
-	/* define/compute tcp header offset */
-	tcp = (struct sniff_tcp*)(packet + SIZE_ETHERNET + size_ip);
-	size_tcp = TH_OFF(tcp)*4;
-	if (size_tcp < 20) {
-		printf("   * Invalid TCP header length: %u bytes\n", size_tcp);
-		return;
-	}
+	// /* define/compute ip header offset */
+	// ip = (struct sniff_ip*)(packet + SIZE_ETHERNET);
+	// size_ip = IP_HL(ip)*4;
+	// if (size_ip < 20) {
+	// 	printf("   * Invalid IP header length: %u bytes\n", size_ip);
+	// 	// return;
+	// }
 
-	printf("   Src port: %d\n", ntohs(tcp->th_sport));
-	printf("   Dst port: %d\n", ntohs(tcp->th_dport));
+	// /* print source and destination IP addresses */
+	// printf("       From: %15s %s\n", inet_ntoa(ip->ip_src), mac_ntoa(ethernet->ether_shost));
+	// printf("         To: %15s %s\n", inet_ntoa(ip->ip_dst), mac_ntoa(ethernet->ether_dhost));
 
-	/* define/compute tcp payload (segment) offset */
-	payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_tcp);
+	// /* determine protocol */
+	// switch(ip->ip_p) {
+	// 	case IPPROTO_TCP:
+	// 		printf("   Protocol: TCP\n");
+	// 		break;
+	// 	case IPPROTO_UDP:
+	// 		printf("   Protocol: UDP\n");
+	// 		return;
+	// 	case IPPROTO_ICMP:
+	// 		printf("   Protocol: ICMP\n");
+	// 		return;
+	// 	case IPPROTO_IP:
+	// 		printf("   Protocol: IP\n");
+	// 		return;
+	// 	default:
+	// 		printf("   Protocol: unknown\n");
+	// 		return;
+	// }
 
-	/* compute tcp payload (segment) size */
-	size_payload = ntohs(ip->ip_len) - (size_ip + size_tcp);
+	// /*
+	//  *  OK, this packet is TCP.
+	//  */
 
-	/*
-	 * Print payload data; it might be binary, so don't just
-	 * treat it as a string.
-	 */
-	if (size_payload > 0) {
-		printf("   Payload (%d bytes):\n", size_payload);
-		print_payload(payload, size_payload);
-	}
+	// /* define/compute tcp header offset */
+	// tcp = (struct sniff_tcp*)(packet + SIZE_ETHERNET + size_ip);
+	// size_tcp = TH_OFF(tcp)*4;
+	// if (size_tcp < 20) {
+	// 	printf("   * Invalid TCP header length: %u bytes\n", size_tcp);
+	// 	return;
+	// }
+
+	// printf("   Src port: %d\n", ntohs(tcp->th_sport));
+	// printf("   Dst port: %d\n", ntohs(tcp->th_dport));
+
+	// /* define/compute tcp payload (segment) offset */
+	// payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_tcp);
+
+	// /* compute tcp payload (segment) size */
+	// size_payload = ntohs(ip->ip_len) - (size_ip + size_tcp);
+
+	// /*
+	//  * Print payload data; it might be binary, so don't just
+	//  * treat it as a string.
+	//  */
+	// if (size_payload > 0) {
+	// 	printf("   Payload (%d bytes):\n", size_payload);
+	// 	print_payload(payload, size_payload);
+	// }
 
 return;
 }
@@ -277,7 +293,7 @@ int main()
 // and (not host 192.168.86.27)
 	// char filter_exp[] = "tcp src portrange 0-1023 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)";		/* filter expression [3] */
 	// char filter_exp[] = "type mgt subtype probe-req";		/* filter expression [3] */
-	char filter_exp[] = "type data";		/* filter expression [3] */
+	char filter_exp[] = "type data ";//subtype data";		/* filter expression [3] */
 	
 	struct bpf_program fp;			/* compiled filter program (expression) */
 	bpf_u_int32 mask;			/* subnet mask */
@@ -368,7 +384,7 @@ int main()
 	printf("started!\n");
 
 	/* now we can set our callback function */
-	pcap_loop(handle, num_packets, got_packet, NULL);
+	pcap_loop(handle, -1, got_packet, NULL);
 
 	/* cleanup */
 	pcap_freecode(&fp);

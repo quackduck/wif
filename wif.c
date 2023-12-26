@@ -128,6 +128,7 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 	static int count = 1;                   /* packet counter */
 	static char* macs[1000];
 	static int macs_count[1000];
+	static long long total;
 
 	u_char *curr = (u_char *)(packet + packet[2]); // skip radiotap
 	
@@ -143,6 +144,8 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 	printf("mac3: %s\n", mac_ntoa((u_char *)curr+12+4));
 
 	print_payload(curr, header->len - packet[2]);
+
+	total += header->len - packet[2];
 
 	// tally up the packet length for each mac
 	for (int i = 0; i < 1000; i++)
@@ -164,7 +167,8 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 	for (int i = 0; i < 1000; i++)
 	{
 		if (macs[i] == NULL) break;
-		printf("%s: %d\n", macs[i], macs_count[i]);
+		//printf("%s: %d\n", macs[i], macs_count[i]);
+		printf("%s: %0.2f%%\n", macs[i], ((double)macs_count[i])/((double)total) * 100);
 	}
 	return;
 }

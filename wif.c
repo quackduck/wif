@@ -69,8 +69,6 @@ print_hex_ascii_line(const u_char *payload, int len, int offset)
 	}
 
 	printf("\n");
-
-return;
 }
 
 /*
@@ -120,27 +118,55 @@ print_payload(const u_char *payload, int len)
  * dissect/print packet
  */
 
+typedef struct {
+	char* mac;
+	char* talks_to;
+	long long count;
+} mac_and_count;
+
+int compare_macs(const void *a, const void *b) {
+	mac_and_count *x = (mac_and_count *) a;
+	mac_and_count *y = (mac_and_count *) b;
+	return (x->count > y->count) - (x->count < y->count);
+}
+
 void
 got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 {
 
-	static int count = 1;                   /* packet counter */
-	static char* macs[1000];
-	static int macs_count[1000];
+	static int count = 0;                   /* packet counter */
+	// static char* macs[1000];
+	// static int macs_count[1000];
+	static mac_and_count mc[1000];
+	static int mc_len = 0;
+	static int largest_pkt;
+	static int smallest_pkt;
+
 	static long long total;
-
 	u_char *curr = (u_char *)(packet + packet[2]); // skip radiotap
-	
-	if ((curr[1] & 0b00000011) != 2) return; // god i hope this works
 
-	printf("\nPacket number %d:\n", count);
+	if ((curr[1] & 0b00000011) != 2) return; // god i hope this works: filter for 10 ds status -> from ds but not to ds
+
 	count++;
 
-	printf("Length: %d\n", header->len);
+	printf("\nPacket number %d:\n", count);
+
+	printf("Length: %d\n", header->len - packet[2]);
+
+	if (count == 1) {
+		smallest_pkt = largest_pkt = header->len - packet[2];
+	} else {
+		if (header->len - packet[2] >  largest_pkt)  largest_pkt = header->len - packet[2];
+		if (header->len - packet[2] < smallest_pkt) smallest_pkt = header->len - packet[2];
+	}
+
+	// if (count == 5) {
+	// 	exit(3);
+	// }
 
 	printf("mac1: %s\n", mac_ntoa(curr+4)); // the receiver, which is what we want to track
-	printf("mac2: %s\n", mac_ntoa(curr+6+4));
-	printf("mac3: %s\n", mac_ntoa(curr+12+4));
+	printf("mac2: %s\n", mac_ntoa(curr+6+4)); // BSSID
+	printf("mac3: %s\n", mac_ntoa(curr+12+4)); // source. empirically usually the router mac address
 
 	print_payload(curr, header->len - packet[2]);
 
@@ -149,26 +175,38 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 	// tally up the packet length for each mac
 	for (int i = 0; i < 1000; i++)
 	{
-		if (macs[i] == NULL)
+		if (mc[i].mac == NULL)
 		{
-			macs[i] = (char *)malloc(18);
-			strcpy(macs[i], mac_ntoa(curr+4));
-			macs_count[i] = header->len - packet[2];
+			mc[i].mac = (char *)malloc(18);
+			strcpy(mc[i].mac, mac_ntoa(curr+4));
+
+			mc[i].count = header->len - packet[2];
+
+			mc[i].talks_to = (char *)malloc(18);
+			strcpy(mc[i].talks_to, mac_ntoa(curr+12+4));
+			mc_len++;
 			break;
 		}
-		if (strcmp(macs[i], mac_ntoa(curr+4)) == 0)
+		if (strcmp(mc[i].mac, mac_ntoa(curr+4)) == 0)
 		{
-			macs_count[i] += header->len - packet[2];
+			mc[i].count += header->len - packet[2];
+			strcpy(mc[i].talks_to, mac_ntoa(curr+12+4));
 			break;
 		}
 	}
+
+	qsort (mc, mc_len, sizeof(*mc), compare_macs);
+
 	// print out the macs and their tallies
 	for (int i = 0; i < 1000; i++)
 	{
-		if (macs[i] == NULL) break;
+		if (mc[i].mac == NULL) break;
 		//printf("%s: %d\n", macs[i], macs_count[i]);
-		printf("%s: %0.2f%%\n", macs[i], ((double)macs_count[i])/((double)total) * 100);
+		printf("%s (last talked to %s): %0.2f%%\n", mc[i].mac, mc[i].talks_to, ((double)mc[i].count)/((double)total) * 100);
 	}
+
+	printf("Smallest packet size: %d\n", smallest_pkt);
+	printf("Largest packet size:  %d\n", largest_pkt);
 }
 
 int main()

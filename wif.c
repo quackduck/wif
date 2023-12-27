@@ -121,6 +121,8 @@ print_payload(const u_char *payload, int len)
 typedef struct {
 	char* mac;
 	char* talks_to;
+	unsigned short last_fc; // two bytes
+	// char last_flags;
 	long long count;
 } mac_and_count;
 
@@ -180,17 +182,22 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 			mc[i].mac = (char *)malloc(18);
 			strcpy(mc[i].mac, mac_ntoa(curr+4));
 
-			mc[i].count = header->len - packet[2];
-
+			// mc[i].count = header->len - packet[2];
+			mc[i].count = 0;
 			mc[i].talks_to = (char *)malloc(18);
-			strcpy(mc[i].talks_to, mac_ntoa(curr+12+4));
+			// strcpy(mc[i].talks_to, mac_ntoa(curr+12+4));
 			mc_len++;
-			break;
+			mc[i].last_fc = 0;
+			// mc[i].last_flags = 0;
+			// break;
 		}
 		if (strcmp(mc[i].mac, mac_ntoa(curr+4)) == 0)
 		{
 			mc[i].count += header->len - packet[2];
 			strcpy(mc[i].talks_to, mac_ntoa(curr+12+4));
+			mc[i].last_fc = ((unsigned short) curr[0] << 8) + (unsigned short) curr[1];
+			// memcpy(&mc[i].last_fc, &curr, sizeof(unsigned short)); // copy first two bytes
+			// mc[i].last_flags = curr[1];
 			break;
 		}
 	}
@@ -202,7 +209,7 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 	{
 		if (mc[i].mac == NULL) break;
 		//printf("%s: %d\n", macs[i], macs_count[i]);
-		printf("%s (last talked to %s): %0.2f%%\n", mc[i].mac, mc[i].talks_to, ((double)mc[i].count)/((double)total) * 100);
+		printf("%s (last talked to %s with fc 0x%04hx): %0.2f%%\n", mc[i].mac, mc[i].talks_to, mc[i].last_fc, ((double)mc[i].count)/((double)total) * 100);
 	}
 
 	printf("Smallest packet size: %d\n", smallest_pkt);
@@ -220,6 +227,7 @@ int main()
 	// char filter_exp[] = "tcp src portrange 0-1023 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)";		/* filter expression [3] */
 	// char filter_exp[] = "type mgt subtype probe-req"; // subtype probe-req		/* filter expression [3] */
 	char filter_exp[] = "(type data) or (type ctl) or (type mgt)";//subtype data";		/* filter expression [3] */
+	// char filter_exp[] = "type data";
 	// char filter_exp[] = "type mgt subtype beacon";
 	struct bpf_program fp;			/* compiled filter program (expression) */
 	bpf_u_int32 mask;			/* subnet mask */

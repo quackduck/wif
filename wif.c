@@ -126,6 +126,11 @@ typedef struct {
 	long long count;
 } mac_and_count;
 
+typedef struct {
+	char* bssid;
+	char* ssid;
+} bssid_ssid;
+
 int compare_macs(const void *a, const void *b) {
 	mac_and_count *x = (mac_and_count *) a;
 	mac_and_count *y = (mac_and_count *) b;
@@ -143,11 +148,69 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 	static int mc_len = 0;
 	static int largest_pkt;
 	static int smallest_pkt;
+	static bssid_ssid bs[100];
+	static int bs_len = 0;
 
 	static long long total;
 	u_char *curr = (u_char *)(packet + packet[2]); // skip radiotap
 
-	if ((curr[1] & 0b00000011) != 2) return; // god i hope this works: filter for 10 ds status -> from ds but not to ds
+	// printf("%02x%02x\n", curr[0], curr[1]);
+
+	if (curr[0] == 0x80) {
+		printf("Skipping beacon\n");
+		return;
+		if (!isprint(curr[38])) { // sometimes the SSID isn't printable?!
+			return;
+		}
+		printf("Beacon!\n");
+		printf("mac1: %s\n", mac_ntoa(curr+4)); // the receiver, which is what we want to track
+		printf("mac2: %s\n", mac_ntoa(curr+6+4)); // BSSID
+		printf("mac3: %s\n", mac_ntoa(curr+12+4)); // source. empirically usually the router mac address
+
+		print_payload(curr, header->len - packet[2]);
+		// for (int i = 0; i < 100; i++)
+		// {
+		// 	if (bs[i].ssid == NULL)
+		// 	{
+		// 		bs[i].ssid = (char *)malloc(32);
+		// 		// printf("SSID: %s", curr+38);
+		// 		// bs[i].ssid = curr+38;
+		// 		strcpy(bs[i].ssid, (void*)curr+38);
+		//
+		// 		// // mc[i].count = header->len - packet[2];
+		// 		// mc[i].count = 0;
+		// 		// mc[i].talks_to = (char *)malloc(18);
+		// 		// // strcpy(mc[i].talks_to, mac_ntoa(curr+12+4));
+		// 		bs_len++;
+		// 		printf("SSID: %s", bs[i].ssid);
+		// 		// mc[i].last_fc = 0;
+		// 		// mc[i].last_flags = 0;
+		// 		// break;
+		// 	}
+		// 	if (strcmp(mc[i].mac, mac_ntoa(curr+4)) == 0)
+		// 	{
+		// 		mc[i].count += header->len - packet[2];
+		// 		strcpy(mc[i].talks_to, mac_ntoa(curr+12+4));
+		// 		mc[i].last_fc = ((unsigned short) curr[0] << 8) + (unsigned short) curr[1];
+		// 		// memcpy(&mc[i].last_fc, curr, 2); // copy first two bytes
+		// 		// mc[i].last_fc = (mc[i].last_fc >> 8) | (mc[i].last_fc << 8); // BE to LE
+		// 		break;
+		// 	}
+		// }
+		return;
+		} else {
+		// return;
+	}
+
+
+	// if ((curr[1] & 0b00000011) != 2) {
+	// 	printf("hello");
+	// 	return; // god i hope this works: filter for 10 ds status -> from ds but not to ds
+	// }
+	// printf("%02x", curr[4]);
+	// if ((curr[4] & 1) == 1) {
+	// 	printf("Multicast???\n");
+	// }
 
 	count++;
 
@@ -196,8 +259,8 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 			mc[i].count += header->len - packet[2];
 			strcpy(mc[i].talks_to, mac_ntoa(curr+12+4));
 			mc[i].last_fc = ((unsigned short) curr[0] << 8) + (unsigned short) curr[1];
-			// memcpy(&mc[i].last_fc, &curr, sizeof(unsigned short)); // copy first two bytes
-			// mc[i].last_flags = curr[1];
+			// memcpy(&mc[i].last_fc, curr, 2); // copy first two bytes
+			// mc[i].last_fc = (mc[i].last_fc >> 8) | (mc[i].last_fc << 8); // BE to LE
 			break;
 		}
 	}
@@ -226,8 +289,10 @@ int main()
 // and (not host 192.168.86.27)
 	// char filter_exp[] = "tcp src portrange 0-1023 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)";		/* filter expression [3] */
 	// char filter_exp[] = "type mgt subtype probe-req"; // subtype probe-req		/* filter expression [3] */
-	char filter_exp[] = "(type data) or (type ctl) or (type mgt)";//subtype data";		/* filter expression [3] */
-	// char filter_exp[] = "type data";
+	// char filter_exp[] = "(type data) or (type ctl) or (type mgt)";//subtype data";		/* filter expression [3] */
+	// char filter_exp[] = "(type data) or (type mgt) or (type ctl)";
+	// char filter_exp[] = "(type data) or (type mgt subtype beacon)";
+	char filter_exp[] = "((type data) and (dir fromds) and (wlan[4] & 1 = 0))"; // data from ds with first address (destination) not a multicast address
 	// char filter_exp[] = "type mgt subtype beacon";
 	struct bpf_program fp;			/* compiled filter program (expression) */
 	bpf_u_int32 mask;			/* subnet mask */
@@ -302,7 +367,8 @@ int main()
 	// }
 
 	/* compile the filter expression */
-	if (pcap_compile(handle, &fp, filter_exp, 0, net) == -1) {
+	// if (pcap_compile(handle, &fp, filter_exp, 0, net) == -1) {
+	if (pcap_compile(handle, &fp, filter_exp, 0, PCAP_NETMASK_UNKNOWN) == -1) { // net
 		fprintf(stderr, "Couldn't parse filter %s: %s\n",
 		    filter_exp, pcap_geterr(handle));
 		exit(EXIT_FAILURE);

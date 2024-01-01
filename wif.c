@@ -157,8 +157,8 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 	// printf("%02x%02x\n", curr[0], curr[1]);
 
 	if (curr[0] == 0x80) {
-		printf("Skipping beacon\n");
-		return;
+		// printf("Skipping beacon\n");
+		// return;
 		if (!isprint(curr[38])) { // sometimes the SSID isn't printable?!
 			return;
 		}
@@ -267,12 +267,14 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 
 	qsort (mc, mc_len, sizeof(*mc), compare_macs);
 
+	printf("%17s\t%17s\t%6s\t%6s\n", "Receiver MAC", "Sender (router) MAC", "Last FC", "Share of traffic");
 	// print out the macs and their tallies
 	for (int i = 0; i < 1000; i++)
 	{
 		if (mc[i].mac == NULL) break;
 		//printf("%s: %d\n", macs[i], macs_count[i]);
-		printf("%s (last talked to %s with fc 0x%04hx): %0.2f%%\n", mc[i].mac, mc[i].talks_to, mc[i].last_fc, ((double)mc[i].count)/((double)total) * 100);
+		//printf("%s (last talked to %s with fc 0x%04hx): %0.2f%%\n", mc[i].mac, mc[i].talks_to, mc[i].last_fc, ((double)mc[i].count)/((double)total) * 100);
+		printf("%s\t%s\t0x%04hx\t%0.2f%%\n", mc[i].mac, mc[i].talks_to, mc[i].last_fc, ((double)mc[i].count)/((double)total) * 100);
 	}
 
 	printf("Smallest packet size: %d\n", smallest_pkt);
@@ -292,7 +294,7 @@ int main()
 	// char filter_exp[] = "(type data) or (type ctl) or (type mgt)";//subtype data";		/* filter expression [3] */
 	// char filter_exp[] = "(type data) or (type mgt) or (type ctl)";
 	// char filter_exp[] = "(type data) or (type mgt subtype beacon)";
-	char filter_exp[] = "((type data) and (dir fromds) and (wlan[4] & 1 = 0))"; // data from ds with first address (destination) not a multicast address
+	char filter_exp[] = "((type data) and (dir fromds) and (wlan[4] & 1 = 0))"; // data from ds with first address (destination) not a multicast address    or (type mgt subtype beacon)
 	// char filter_exp[] = "type mgt subtype beacon";
 	struct bpf_program fp;			/* compiled filter program (expression) */
 	bpf_u_int32 mask;			/* subnet mask */

@@ -31,13 +31,12 @@ print_hex_ascii_line(const u_char *payload, int len, int offset)
 
 	int i;
 	int gap;
-	const u_char *ch;
 
 	/* offset */
 	printf("%05d   ", offset);
 
 	/* hex */
-	ch = payload;
+	const u_char* ch = payload;
 	for(i = 0; i < len; i++) {
 		printf("%02x ", *ch);
 		ch++;
@@ -79,8 +78,7 @@ print_payload(const u_char *payload, int len)
 {
 
 	int len_rem = len;
-	int line_width = 16;			/* number of bytes per line */
-	int line_len;
+	const int line_width = 16;			/* number of bytes per line */
 	int offset = 0;					/* zero-based offset counter */
 	const u_char *ch = payload;
 
@@ -96,7 +94,7 @@ print_payload(const u_char *payload, int len)
 	/* data spans multiple lines */
 	for ( ;; ) {
 		/* compute current line length */
-		line_len = line_width % len_rem;
+		const int line_len = line_width % len_rem;
 		/* print line */
 		print_hex_ascii_line(ch, line_len, offset);
 		/* compute total remaining */
@@ -156,58 +154,45 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 
 	// printf("%02x%02x\n", curr[0], curr[1]);
 
-	if (curr[0] == 0x80) {
-		// printf("Skipping beacon\n");
-		// return;
+	if (curr[0] == 0x80) { // beacon
 		if (!isprint(curr[38])) { // sometimes the SSID isn't printable?!
 			return;
 		}
-		printf("Beacon!\n");
-		printf("mac1: %s\n", mac_ntoa(curr+4)); // the receiver, which is what we want to track
-		printf("mac2: %s\n", mac_ntoa(curr+6+4)); // BSSID
-		printf("mac3: %s\n", mac_ntoa(curr+12+4)); // source. empirically usually the router mac address
+		// printf("Beacon!\n");
+		// printf("mac1: %s\n", mac_ntoa(curr+4)); // the receiver, which is what we want to track
+		// printf("mac2: %s\n", mac_ntoa(curr+6+4)); // BSSID
+		// printf("mac3: %s\n", mac_ntoa(curr+12+4)); // source. empirically usually the router mac address
 
-		print_payload(curr, header->len - packet[2]);
-		// for (int i = 0; i < 100; i++)
-		// {
-		// 	if (bs[i].ssid == NULL)
-		// 	{
-		// 		bs[i].ssid = (char *)malloc(32);
-		// 		// printf("SSID: %s", curr+38);
-		// 		// bs[i].ssid = curr+38;
-		// 		strcpy(bs[i].ssid, (void*)curr+38);
-		//
-		// 		// // mc[i].count = header->len - packet[2];
-		// 		// mc[i].count = 0;
-		// 		// mc[i].talks_to = (char *)malloc(18);
-		// 		// // strcpy(mc[i].talks_to, mac_ntoa(curr+12+4));
-		// 		bs_len++;
-		// 		printf("SSID: %s", bs[i].ssid);
-		// 		// mc[i].last_fc = 0;
-		// 		// mc[i].last_flags = 0;
-		// 		// break;
-		// 	}
-		// 	if (strcmp(mc[i].mac, mac_ntoa(curr+4)) == 0)
-		// 	{
-		// 		mc[i].count += header->len - packet[2];
-		// 		strcpy(mc[i].talks_to, mac_ntoa(curr+12+4));
-		// 		mc[i].last_fc = ((unsigned short) curr[0] << 8) + (unsigned short) curr[1];
-		// 		// memcpy(&mc[i].last_fc, curr, 2); // copy first two bytes
-		// 		// mc[i].last_fc = (mc[i].last_fc >> 8) | (mc[i].last_fc << 8); // BE to LE
-		// 		break;
-		// 	}
-		// }
+		// print_payload(curr, header->len - packet[2]);
+		for (int i = 0; i < 100; i++)
+		{
+			if (bs[i].bssid != NULL && strcmp(bs[i].bssid, mac_ntoa(curr+4+6)) == 0)
+			{
+				// already seen this one
+				break;
+			}
+			if (bs[i].ssid == NULL)
+			{
+				bs[i].ssid = (char *)calloc(1, 33); // need zeros
+				// printf("SSID: %s", curr+38);
+				bs[i].bssid = (char *) calloc(1, 18);
+				strcpy(bs[i].bssid, mac_ntoa(curr+6+4));
+
+				memccpy(bs[i].ssid, curr+38, 0x01, 32); // empirically, a 01 seems to always follow the bssid
+				bs[i].ssid[strlen(bs[i].ssid) - 1] = 0; // set that 0x01 to 0
+
+				bs_len++;
+				printf("SSID: %s\n", bs[i].ssid);
+				break;
+			}
+		}
 		return;
-		} else {
-		// return;
 	}
 
 
 	// if ((curr[1] & 0b00000011) != 2) {
-	// 	printf("hello");
 	// 	return; // god i hope this works: filter for 10 ds status -> from ds but not to ds
 	// }
-	// printf("%02x", curr[4]);
 	// if ((curr[4] & 1) == 1) {
 	// 	printf("Multicast???\n");
 	// }
@@ -225,10 +210,6 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 		if (header->len - packet[2] < smallest_pkt) smallest_pkt = header->len - packet[2];
 	}
 
-	// if (count == 5) {
-	// 	exit(3);
-	// }
-
 	printf("mac1: %s\n", mac_ntoa(curr+4)); // the receiver, which is what we want to track
 	printf("mac2: %s\n", mac_ntoa(curr+6+4)); // BSSID
 	printf("mac3: %s\n", mac_ntoa(curr+12+4)); // source. empirically usually the router mac address
@@ -242,12 +223,12 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 	{
 		if (mc[i].mac == NULL)
 		{
-			mc[i].mac = (char *)malloc(18);
+			mc[i].mac = (char *)calloc(1, 18);
 			strcpy(mc[i].mac, mac_ntoa(curr+4));
 
 			// mc[i].count = header->len - packet[2];
 			mc[i].count = 0;
-			mc[i].talks_to = (char *)malloc(18);
+			mc[i].talks_to = (char *)calloc(1, 18);
 			// strcpy(mc[i].talks_to, mac_ntoa(curr+12+4));
 			mc_len++;
 			mc[i].last_fc = 0;
@@ -277,6 +258,15 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 		printf("%s\t%s\t0x%04hx\t%0.2f%%\n", mc[i].mac, mc[i].talks_to, mc[i].last_fc, ((double)mc[i].count)/((double)total) * 100);
 	}
 
+	// Print BSSID to SSID table
+	printf("\n%17s\t%s\n", "BSSID", "SSID");
+	for (int i = 0; i < 100; i++)
+	{
+		if (bs[i].bssid == NULL) break;
+		printf("%s\t%s\n", bs[i].bssid, bs[i].ssid);
+	}
+
+
 	printf("Smallest packet size: %d\n", smallest_pkt);
 	printf("Largest packet size:  %d\n", largest_pkt);
 }
@@ -294,7 +284,7 @@ int main()
 	// char filter_exp[] = "(type data) or (type ctl) or (type mgt)";//subtype data";		/* filter expression [3] */
 	// char filter_exp[] = "(type data) or (type mgt) or (type ctl)";
 	// char filter_exp[] = "(type data) or (type mgt subtype beacon)";
-	char filter_exp[] = "((type data) and (dir fromds) and (wlan[4] & 1 = 0))"; // data from ds with first address (destination) not a multicast address    or (type mgt subtype beacon)
+	char filter_exp[] = "((type data) and (dir fromds) and (wlan[4] & 1 = 0)) or type mgt subtype beacon"; // data from ds with first address (destination) not a multicast address    or (type mgt subtype beacon)
 	// char filter_exp[] = "type mgt subtype beacon";
 	struct bpf_program fp;			/* compiled filter program (expression) */
 	bpf_u_int32 mask;			/* subnet mask */

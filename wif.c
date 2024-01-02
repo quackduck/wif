@@ -7,7 +7,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 // #include <netinet/in.h>
-#include <arpa/inet.h>
+// #include <arpa/inet.h>
 
 void
 got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet);
@@ -19,6 +19,24 @@ void
 print_hex_ascii_line(const u_char *payload, int len, int offset);
 
 char *mac_ntoa(u_char *d);
+
+typedef struct {
+	char* mac;
+	char* bssid;
+	char* ssid;
+	unsigned short last_fc; // two bytes
+	// char last_flags;
+	long long count;
+} mac_and_count;
+
+typedef struct {
+	char* bssid;
+	char* ssid;
+} bssid_ssid;
+
+char* lookup_ssid(const char* bssid, bssid_ssid bs[], int bs_len);
+
+
 
 /*
  * print data in rows of 16 bytes: offset   hex   ascii
@@ -116,19 +134,6 @@ print_payload(const u_char *payload, int len)
  * dissect/print packet
  */
 
-typedef struct {
-	char* mac;
-	char* talks_to;
-	unsigned short last_fc; // two bytes
-	// char last_flags;
-	long long count;
-} mac_and_count;
-
-typedef struct {
-	char* bssid;
-	char* ssid;
-} bssid_ssid;
-
 int compare_macs(const void *a, const void *b) {
 	mac_and_count *x = (mac_and_count *) a;
 	mac_and_count *y = (mac_and_count *) b;
@@ -159,12 +164,8 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 			return;
 		}
 		// printf("Beacon!\n");
-		// printf("mac1: %s\n", mac_ntoa(curr+4)); // the receiver, which is what we want to track
-		// printf("mac2: %s\n", mac_ntoa(curr+6+4)); // BSSID
-		// printf("mac3: %s\n", mac_ntoa(curr+12+4)); // source. empirically usually the router mac address
-
 		// print_payload(curr, header->len - packet[2]);
-		for (int i = 0; i < 100; i++)
+		for (int i = 0; i < bs_len+1 && i < 100; i++)
 		{
 			if (bs[i].bssid != NULL && strcmp(bs[i].bssid, mac_ntoa(curr+4+6)) == 0)
 			{
@@ -228,7 +229,7 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 
 			// mc[i].count = header->len - packet[2];
 			mc[i].count = 0;
-			mc[i].talks_to = (char *)calloc(1, 18);
+			mc[i].bssid = (char *)calloc(1, 18);
 			// strcpy(mc[i].talks_to, mac_ntoa(curr+12+4));
 			mc_len++;
 			mc[i].last_fc = 0;
@@ -238,7 +239,7 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 		if (strcmp(mc[i].mac, mac_ntoa(curr+4)) == 0)
 		{
 			mc[i].count += header->len - packet[2];
-			strcpy(mc[i].talks_to, mac_ntoa(curr+12+4));
+			strcpy(mc[i].bssid, mac_ntoa(curr+6+4)); // bssid
 			mc[i].last_fc = ((unsigned short) curr[0] << 8) + (unsigned short) curr[1];
 			// memcpy(&mc[i].last_fc, curr, 2); // copy first two bytes
 			// mc[i].last_fc = (mc[i].last_fc >> 8) | (mc[i].last_fc << 8); // BE to LE
@@ -248,27 +249,36 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 
 	qsort (mc, mc_len, sizeof(*mc), compare_macs);
 
-	printf("%17s\t%17s\t%6s\t%6s\n", "Receiver MAC", "Sender (router) MAC", "Last FC", "Share of traffic");
+	printf("%17s   %17s   %17s   %6s   %6s\n", "Device MAC", "BSSID", "SSID", "Last FC", "Share of traffic");
 	// print out the macs and their tallies
 	for (int i = 0; i < 1000; i++)
 	{
 		if (mc[i].mac == NULL) break;
 		//printf("%s: %d\n", macs[i], macs_count[i]);
 		//printf("%s (last talked to %s with fc 0x%04hx): %0.2f%%\n", mc[i].mac, mc[i].talks_to, mc[i].last_fc, ((double)mc[i].count)/((double)total) * 100);
-		printf("%s\t%s\t0x%04hx\t%0.2f%%\n", mc[i].mac, mc[i].talks_to, mc[i].last_fc, ((double)mc[i].count)/((double)total) * 100);
+		printf("%s   %s   %17s    0x%04hx   %0.2f%%\n", mc[i].mac, mc[i].bssid, lookup_ssid(mc[i].bssid, bs, bs_len), mc[i].last_fc, ((double)mc[i].count)/((double)total) * 100);
 	}
 
 	// Print BSSID to SSID table
-	printf("\n%17s\t%s\n", "BSSID", "SSID");
+	printf("\n%17s   %s\n", "BSSID", "SSID");
 	for (int i = 0; i < 100; i++)
 	{
 		if (bs[i].bssid == NULL) break;
-		printf("%s\t%s\n", bs[i].bssid, bs[i].ssid);
+		printf("%s   %s\n", bs[i].bssid, bs[i].ssid);
 	}
 
 
 	printf("Smallest packet size: %d\n", smallest_pkt);
 	printf("Largest packet size:  %d\n", largest_pkt);
+}
+
+char* lookup_ssid(const char* bssid, bssid_ssid bs[], int bs_len) {
+	for (int i = 0; i < bs_len; i++)
+	{
+		if (bs[i].bssid == NULL) break;
+		if (strcmp(bs[i].bssid, bssid) == 0) return bs[i].ssid;
+	}
+	return "(?)";
 }
 
 int main()

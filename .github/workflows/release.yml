@@ -1,0 +1,26 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+#
+jobs:
+    # for this file to work you also need to enable read and write perms in the repo settings for actions
+    # generates a .tar.gz and uploads to releases
+  release:
+    runs-on: ubuntu-latest
+    steps:
+        - uses: actions/checkout@main
+        - name: Archive Release
+          uses: thedoctor0/zip-release@0.7.6
+          with:
+            type: 'tar'
+            filename: '../release.tar.gz'
+            exclusions: ''
+        - name: Upload Release
+          uses: ncipollo/release-action@v1.12.0
+          with:
+            artifacts: "../release.tar.gz"
+            token: ${{ secrets.GITHUB_TOKEN }}
+            

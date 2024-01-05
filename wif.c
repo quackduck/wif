@@ -294,22 +294,25 @@ int main()
 	// char filter_exp[] = "(type data) or (type ctl) or (type mgt)";//subtype data";		/* filter expression [3] */
 	// char filter_exp[] = "(type data) or (type mgt) or (type ctl)";
 	// char filter_exp[] = "(type data) or (type mgt subtype beacon)";
+
 	char filter_exp[] = "((type data) and (dir fromds) and (wlan[4] & 1 = 0)) or type mgt subtype beacon"; // data from ds with first address (destination) not a multicast address    or (type mgt subtype beacon)
+	// char filter_exp[] = "((type data) and (dir fromds))";
+
 	// char filter_exp[] = "type mgt subtype beacon";
 	struct bpf_program fp;			/* compiled filter program (expression) */
 	bpf_u_int32 mask;			/* subnet mask */
 	bpf_u_int32 net;			/* ip */
-	// int num_packets = 10000;			/* number of packets to capture */
 
-	/* find a capture device if not specified on command-line */
-	// dev = pcap_lookupdev(errbuf);
-	// if (dev == NULL) {
-	// 	fprintf(stderr, "Couldn't find default device: %s\n",
-	// 	    errbuf);
-	// 	exit(EXIT_FAILURE);
-	// }∏
+	// dev = "en0";
+	// get the default device
+	pcap_if_t *device;
+	if (pcap_findalldevs(&device, errbuf) == -1)
+	{
+		fprintf(stderr, "Error finding devices : %s\n", errbuf);
+		exit(1);
+	}
+	dev = device->name;
 
-	dev = "en0";
 
 	/* get network number and mask associated with capture device */
 	if (pcap_lookupnet(dev, &net, &mask, errbuf) == -1) {
@@ -322,7 +325,7 @@ int main()
 	/* print capture info */
 	printf("Device: %s\n", dev);
 	// printf("Number of packets: %d\n", num_packets);
-	printf("Filter expression: %s\n", filter_exp);
+	// printf("Filter expression: %s\n", filter_exp);
 
 	// /* open capture device */
 	// handle = pcap_open_live(dev, SNAP_LEN, 1, 1000, errbuf);

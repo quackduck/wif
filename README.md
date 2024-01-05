@@ -4,7 +4,7 @@
 ## Usage
 
 ### Installing
-Build from source with `gcc -lpcap wif.c -o wif` or install with Homebrew: `brew install wif`
+Build from source with `gcc -lpcap wif.c -o wif` or install with Homebrew: `brew install quackduck/tap/wif`
 
 ### Running
 Wif works by putting your default interface in monitor mode. This requires the WiFi interface to not be connected to a network. This means that you must disconnect from the WiFi network you're connected to before using Wif.

@@ -155,6 +155,10 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 	static int bs_len = 0;
 
 	static long long total;
+
+	// dump
+	pcap_dump(args, header, packet);
+
 	u_char *curr = (u_char *)(packet + packet[2]); // skip radiotap
 
 	// printf("%02x%02x\n", curr[0], curr[1]);
@@ -388,12 +392,20 @@ int main()
 
 	printf("started!\n");
 
+	pcap_dumper_t *pd = pcap_dump_open(handle, "wif.pcap");
+	if (pd == NULL)
+	{
+		printf("pcap_dump_open for wif.pcap failed\n");
+		return 3;
+	}
+
 	/* now we can set our callback function */
-	pcap_loop(handle, -1, got_packet, NULL);
+	pcap_loop(handle, -1, got_packet, (u_char*) pd);
 
 	/* cleanup */
 	pcap_freecode(&fp);
 	pcap_close(handle);
+	pcap_dump_close(pd);
 
 	printf("\nCapture complete.\n");
 

@@ -11,6 +11,7 @@ Wif works by putting your default interface in monitor mode. This requires the W
 
 Usage is easy. Just run `./wif`. No arguments or options. Wif prints all packets that are heading to devices from the router, keeps track of SSIDs found, and shows two tables of information: one for devices that shows the BSSID they're connected to, the SSID (if detected), the last frame control field of the packet and the relative share of all traffic, and one for BSSIDs to SSIDs.
 
+Wif also saves a `wif.pcap` file in the working directory that can be used for later analysis.
 ### Channel & channel width
 **Important:** Wif can't setup the channel or channel width to listen on: you need to find out how to do this on your OS
 

@@ -25,6 +25,10 @@ This packet was destined for a computer that was visiting an HTTP website on an 
 This image shows the two tables of data that Wif presents.
 ![image](https://github.com/quackduck/wif/assets/38882631/d7fb2919-e326-4d1c-ac66-c7898d9877d9)
 
+An example with the new barplot feature:
+![image](https://github.com/quackduck/wif/assets/38882631/427ab757-c2d8-4f29-83a8-9eb3252d8d5f)
+
+
 ## Disclaimer
 
 Wif was made for educational purposes (I learnt so much making this thing, it's unbelievable) and is intended to be used for educational purposes. _I absolve myself of responsibility for any legal trouble you get into for using this tool._

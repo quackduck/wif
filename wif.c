@@ -260,7 +260,15 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 		if (mc[i].mac == NULL) break;
 		//printf("%s: %d\n", macs[i], macs_count[i]);
 		//printf("%s (last talked to %s with fc 0x%04hx): %0.2f%%\n", mc[i].mac, mc[i].talks_to, mc[i].last_fc, ((double)mc[i].count)/((double)total) * 100);
-		printf("%s   %s   %17s    0x%04hx   %0.2f%%\n", mc[i].mac, mc[i].bssid, lookup_ssid(mc[i].bssid, bs, bs_len), mc[i].last_fc, ((double)mc[i].count)/((double)total) * 100);
+		double share = ((double)mc[i].count)/((double)total) * 100;
+		printf("%s   %s   %17s    0x%04hx   %5.2f%% ", mc[i].mac, mc[i].bssid, lookup_ssid(mc[i].bssid, bs, bs_len), mc[i].last_fc, share);
+		// barplot of traffic
+		for (int i = 1; i <= 10; i++) {
+			if (share >= i*10 - 5) printf("*");
+			else printf(" ");
+			if (i == 10) printf("|");
+		}
+		printf("\n");
 	}
 
 	// Print BSSID to SSID table

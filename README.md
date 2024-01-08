@@ -23,7 +23,7 @@ This packet was destined for a computer that was visiting an HTTP website on an 
 ![image](https://github.com/quackduck/wif/assets/38882631/24ae29a9-d187-4427-9538-c36cb9c0f6b8)
 
 This image shows the two tables of data that Wif presents.
-![image](https://github.com/quackduck/wif/assets/38882631/d7fb2919-e326-4d1c-ac66-c7898d9877d9)
+![image](https://github.com/quackduck/wif/assets/38882631/0ef63522-6d84-419d-b17e-c998ce567334)
 
 An example with the new barplot feature:
 ![image](https://github.com/quackduck/wif/assets/38882631/427ab757-c2d8-4f29-83a8-9eb3252d8d5f)

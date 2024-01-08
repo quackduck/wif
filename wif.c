@@ -32,6 +32,7 @@ typedef struct {
 typedef struct {
 	char* bssid;
 	char* ssid;
+	short encrypted;
 } bssid_ssid;
 
 char* lookup_ssid(const char* bssid, bssid_ssid bs[], int bs_len);
@@ -186,6 +187,9 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 				memccpy(bs[i].ssid, curr+38, 0x01, 32); // empirically, a 01 seems to always follow the bssid
 				bs[i].ssid[strlen(bs[i].ssid) - 1] = 0; // set that 0x01 to 0
 
+				// if the 4th bit of the 34-index byte is 1, it's encrypted
+				bs[i].encrypted = (curr[34] & 0b00010000) >> 4;
+
 				bs_len++;
 				printf("SSID: %s\n", bs[i].ssid);
 				break;
@@ -272,11 +276,11 @@ got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 	}
 
 	// Print BSSID to SSID table
-	printf("\n%17s   %s\n", "BSSID", "SSID");
+	printf("\n%17s   %s   %s\n", "BSSID", "Encrypted?", "SSID");
 	for (int i = 0; i < 100; i++)
 	{
 		if (bs[i].bssid == NULL) break;
-		printf("%s   %s\n", bs[i].bssid, bs[i].ssid);
+		printf("%s   %10s   %s\n", bs[i].bssid, bs[i].encrypted ? "✅" : "⛔", bs[i].ssid);
 	}
 
 

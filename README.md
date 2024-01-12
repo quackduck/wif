@@ -4,12 +4,12 @@
 ## Usage
 
 ### Installing
-Build from source with `gcc -lpcap wif.c -o wif` or install with Homebrew: `brew install quackduck/tap/wif`
+Build from source with `gcc -lpcap wif.c -o wif` (need `libpcap` installed (already pre-installed on macOS)) or install with Homebrew: `brew install quackduck/tap/wif`
 
 ### Running
 Wif works by putting your default interface in monitor mode. This requires the WiFi interface to not be connected to a network. This means that you must disconnect from the WiFi network you're connected to before using Wif.
 
-Usage is easy. Just run `./wif` (you may need `sudo` to capture packets). No arguments or options. Wif prints all packets that are heading to devices from the router, keeps track of SSIDs found, and shows two tables of information: one for devices that shows the BSSID they're connected to, the SSID (if detected), the last frame control field of the packet and the relative share of all traffic, and one for BSSIDs to SSIDs.
+Usage is easy. Just run `./wif` (you may need `sudo` to capture packets). No arguments or options. Wif prints all packets that are heading to devices from the router, keeps track of SSIDs found, and shows two tables of information: one for devices that shows the BSSID they're connected to, the SSID (if detected), the last frame control field of the packet, the relative share of all traffic with a bar plot, and one for BSSIDs to SSIDs with a field for whether the network is encrypted or not.
 
 Wif also saves a `wif.pcap` file in the working directory that can be used for later analysis.
 ### Channel & channel width

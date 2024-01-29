@@ -11,6 +11,7 @@
 #define HASHSIZE 101
 
 typedef struct item item;
+
 struct item {
   char* key;
   char* value;
@@ -300,7 +301,7 @@ got_packet(u_char* args, const struct pcap_pkthdr* header, const u_char* packet)
 //   return "(?)";
 // }
 
-int main() {
+int main(int argc, char* argv[]) {
   char* dev = NULL; /* capture device name */
   char errbuf[PCAP_ERRBUF_SIZE]; /* error buffer */
   /* packet capture handle */
@@ -322,14 +323,42 @@ int main() {
   bpf_u_int32 net; /* ip */
 
   // dev = "en0";
-  // get the default device
   pcap_if_t* device;
   if (pcap_findalldevs(&device, errbuf) == -1) {
     fprintf(stderr, "Error finding devices : %s\n", errbuf);
-    exit(1);
+    return 1;
   }
-  dev = device->name;
-
+  if (argc == 2) {
+    dev = argv[1];
+    if (strcmp(dev, "-l") == 0 || strcmp(dev, "--list") == 0) {
+      for (pcap_if_t* d = device; d != NULL; d = d->next) {
+        printf("%s ", d->name);
+      }
+      printf("\n");
+      return 0;
+    }
+    if (strcmp(dev, "-h") == 0 || strcmp(dev, "--help") == 0) {
+      printf("Wif - WiFi packet sniffer.\n"
+             "Captures WiFi packets and displays traffic info.\n"
+             "\n"
+             "Usage: %s [device]\n"
+             "       %s -l/--list | -h/--help\n"
+             "\n"
+             "If no device is specified, the default device will be used.\n"
+             "Use -l/--list to list available devices and -h/--help to view this message\n", argv[0], argv[0]);
+      return 0;
+    }
+    // make sure device exists
+    for (pcap_if_t* d = device; ; d = d->next) {
+      if (strcmp(d->name, dev) == 0) break;
+      if (d->next == NULL) {
+        fprintf(stderr, "Device %s not found\n", dev);
+        exit(1);
+      }
+    }
+  } else {
+    dev = device->name;
+  }
 
   /* get network number and mask associated with capture device */
   if (pcap_lookupnet(dev, &net, &mask, errbuf) == -1) {
@@ -391,14 +420,14 @@ int main() {
     // net
     fprintf(stderr, "Couldn't parse filter %s: %s\n",
             filter_exp, pcap_geterr(handle));
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   }
 
   /* apply the compiled filter */
   if (pcap_setfilter(handle, &fp) == -1) {
     fprintf(stderr, "Couldn't install filter %s: %s\n",
             filter_exp, pcap_geterr(handle));
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   }
 
   printf("started!\n");
